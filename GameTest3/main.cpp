@@ -154,6 +154,8 @@ void PlayerUpdate(Player& player)
 	int padState = GetJoypadInputState(DX_INPUT_KEY_PAD1);
 
 	{
+			int padState = GetJoypadInputState(DX_INPUT_KEY_PAD1);
+
 		if (padState & PAD_INPUT_LEFT)
 		{
 			player.currSpeedX -= player.Acc;
