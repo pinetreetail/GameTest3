@@ -18,9 +18,6 @@ struct Player
 	float currSpeedY;
 
 	bool Dead;
-
-	int space;
-	int ShotStop;
 };
 
 struct Enemy
@@ -31,9 +28,6 @@ struct Enemy
 	float sizeInside;
 
 	float speed;
-
-	int ColorOutside;
-	int ColorInside;
 
 	bool Dead;
 
@@ -50,19 +44,6 @@ struct Shot
 
 	bool Dead;
 };
-
-void PlayerInit(Player& player);
-void PlayerUpdate(Player& player);
-void PlayerDraw(Player& player);
-
-void EnemyInit(Enemy& enemy);
-void EnemyUpdate(Enemy& enemy);
-void EnemyDraw(Enemy& enemy);
-
-void ShotInit(Shot& shot);
-void ShotUpdate(Shot& shot);
-void ShotDraw(Shot& shot);
-
 
 // プログラムは WinMain から始まります
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
@@ -84,27 +65,193 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
 
 	Player player;
-	PlayerInit(player);
-	Enemy enemy;
-	EnemyInit(enemy);
-	Shot shot;
-	ShotInit(shot);
+	player.sizeOutside = 70;
+	player.sizeInside = 20;  
 
+	player.posX = (Game::kScreenWidth / 2) - (player.sizeOutside / 2);
+	player.posY = 700 - (player.sizeOutside / 2);
+
+	player.speedMax = 7;
+	player.Acc = 4;
+	player.currSpeedX = 0;
+	player.currSpeedY = 0;
+
+	player.Dead = false;
+
+	int space = 0;
+	int ShotStop = 30;
+
+	int EnemyStop = 120;
+
+	//PlayerInit(player);
+	Enemy enemy[ENEMY_MAX];
+	for (int i = 0; i < ENEMY_MAX; i++)
+	{
+		enemy[i].sizeOutside = 60;
+		enemy[i].sizeInside = 20;
+
+		enemy[i].speed = 6;
+
+		enemy[i].Dead = true;
+
+		enemy[i].resize = true;
+	}
+
+//	EnemyInit(enemy);
+	Shot shot[SHOT_MAX];
+	for (int i = 0; i < SHOT_MAX; i++)
+	{
+		shot[i].size = 10;
+
+		shot[i].speed = 10;
+
+		shot[i].Dead = true;
+
+//		ShotInit(shot[i]);
+	}
+	
 
 	while (ProcessMessage() == 0)
 	{
 		LONGLONG time = GetNowHiPerformanceCount();
 		// 画面のクリア
 		ClearDrawScreen();
+
+
+		if (player.Dead == false)
+		{
+			int padState = GetJoypadInputState(DX_INPUT_KEY_PAD1);
+
+			if (padState & PAD_INPUT_LEFT)
+			{
+				player.currSpeedX -= player.Acc;
+				if (player.currSpeedX < -player.speedMax)	player.currSpeedX = -player.speedMax;
+			}
+			else if (padState & PAD_INPUT_RIGHT)
+			{
+				player.currSpeedX += player.Acc;
+				if (player.currSpeedX > player.speedMax)	player.currSpeedX = player.speedMax;
+			}
+			if (padState & PAD_INPUT_UP)
+			{
+				player.currSpeedY -= player.Acc;
+				if (player.currSpeedY < -player.speedMax)	player.currSpeedY = -player.speedMax;
+			}
+			else if (padState & PAD_INPUT_DOWN)
+			{
+				player.currSpeedY += player.Acc;
+				if (player.currSpeedY > player.speedMax)	player.currSpeedY = player.speedMax;
+			}
+			else
+			{
+				player.currSpeedX *= 0.9f;
+				player.currSpeedY *= 0.9f;
+			}
+
+			player.posX += player.currSpeedX;
+			player.posY += player.currSpeedY;
+
+			if (player.posX < 0)	player.posX = 0;
+			if (player.posX > Game::kScreenWidth - player.sizeOutside)	player.posX = (Game::kScreenWidth - player.sizeOutside);
+			if (player.posY < 0)	player.posY = 0;
+			if (player.posY > Game::kScreenHeight - player.sizeOutside)	player.posY = (Game::kScreenHeight - player.sizeOutside);
+
+
+			ShotStop--;
+
+			if (padState & PAD_INPUT_A && ShotStop < 0)
+			{
+				if (space > 0)
+				{
+					space = -1;
+					for (int i = 0; i < SHOT_MAX; i++)
+					{
+						if (shot[i].Dead == true)
+						{
+							shot[i].posX = ((player.posX + player.sizeOutside) / 2)
+											- (shot[i].size / 2);
+							shot[i].posY = player.posY + shot[i].size;
+						
+							shot[i].Dead = false;
+
+							break;
+						}
+					}
+
+					ShotStop = 30;
+				}
+				else
+				{
+					space = 0;
+				}
+			}
+
+			DrawCircle(player.posX + (player.sizeOutside / 2), player.posY + (player.sizeOutside / 2),
+				player.sizeInside, GetColor(0, 255, 0), true);
+
+			DrawBox(player.posX, player.posY, player.posX + player.sizeOutside, player.posY + player.sizeOutside,
+				GetColor(0, 255, 255), false);
+		}
 		
+		EnemyStop--;
 
-		PlayerUpdate(player);
-		EnemyUpdate(enemy);
-		ShotUpdate(shot);
+		if (EnemyStop < 0)
+		{
+			for (int i = 0; i < ENEMY_MAX; i++)
+			{
+				if (enemy[i].Dead == true)
+				{
+					enemy[i].posX = GetRand((Game::kScreenWidth - enemy[i].sizeOutside));
+					enemy[i].posY = 0;
 
-		PlayerDraw(player);
-		EnemyDraw(enemy);
-		ShotDraw(shot);
+					enemy[i].Dead == false;
+
+					EnemyStop = 120;
+
+					break;
+				}
+			}
+		}
+
+		for (int i = 0; i < ENEMY_MAX; i++)
+		{
+			if (enemy[i].Dead == false)
+			{
+				if (enemy[i].resize)
+				{
+					enemy[i].sizeInside--;
+					if (enemy[i].sizeInside == 10)	enemy[i].resize = false;
+				}
+				else if (enemy[i].resize == false)
+				{
+					enemy[i].sizeInside++;
+					if (enemy[i].sizeInside == 20)	enemy[i].resize = true;
+				}
+
+				enemy[i].posY += enemy[i].speed;
+
+				if (enemy[i].posY > Game::kScreenHeight - enemy[i].sizeOutside)	enemy[i].Dead = true;
+
+				DrawBox(enemy[i].posX, enemy[i].posY, enemy[i].posX + enemy[i].sizeOutside, enemy[i].posY + enemy[i].sizeOutside,
+					GetColor(255, 0, 0), false);
+
+				DrawCircle(enemy[i].posX + (enemy[i].sizeOutside / 2), enemy[i].posY + (enemy[i].sizeOutside / 2),
+					enemy[i].sizeInside, GetColor(0, 0, 255), true);
+			}
+		}
+
+		for (int i = 0; i < SHOT_MAX; i++)
+		{
+			if (shot[i].Dead == false)
+			{
+				shot[i].posY -= shot[i].speed;
+
+				if (shot[i].posY > 0)	shot[i].Dead = true;
+
+				DrawBox(shot[i].posX, shot[i].posY, shot[i].posX + shot[i].size, shot[i].posY + shot[i].size,
+					GetColor(255, 255, 0), false);
+			}
+		}
 
 
 		// 裏画面を表画面に入れ替える
@@ -125,184 +272,4 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	DxLib_End();				// ＤＸライブラリ使用の終了処理
 
 	return 0;				// ソフトの終了 
-}
-
-
-void PlayerInit(Player& player)
-{
-	player.sizeOutside = 70;
-	player.sizeInside = 20;
-
-	player.posX = (Game::kScreenWidth / 2) - (player.sizeOutside / 2);
-	player.posY = 700 - (player.sizeOutside / 2);
-
-	player.speedMax = 7;
-	player.Acc = 4;
-	player.currSpeedX = 0;
-	player.currSpeedY = 0;
-
-	player.Dead = false;
-
-	player.space = 0;
-	player.ShotStop = 30;
-}
-
-void PlayerUpdate(Player& player)
-{
-	if (player.Dead)	return;
-
-	int padState = GetJoypadInputState(DX_INPUT_KEY_PAD1);
-
-	{
-			int padState = GetJoypadInputState(DX_INPUT_KEY_PAD1);
-
-		if (padState & PAD_INPUT_LEFT)
-		{
-			player.currSpeedX -= player.Acc;
-			if (player.currSpeedX < -player.speedMax)	player.currSpeedX = -player.speedMax;
-		}
-		else if (padState & PAD_INPUT_RIGHT)
-		{
-			player.currSpeedX += player.Acc;
-			if (player.currSpeedX > player.speedMax)	player.currSpeedX = player.speedMax;
-		}
-		if (padState & PAD_INPUT_UP)
-		{
-			player.currSpeedY -= player.Acc;
-			if (player.currSpeedY < -player.speedMax)	player.currSpeedY = -player.speedMax;
-		}
-		else if (padState & PAD_INPUT_DOWN)
-		{
-			player.currSpeedY += player.Acc;
-			if (player.currSpeedY > player.speedMax)	player.currSpeedY = player.speedMax;
-		}
-		else
-		{
-			player.currSpeedX *= 0.9f;
-			player.currSpeedY *= 0.9f;
-		}
-
-		player.posX += player.currSpeedX;
-		player.posY += player.currSpeedY;
-
-		if (player.posX < 0)	player.posX = 0;
-		if (player.posX > Game::kScreenWidth - player.sizeOutside)	player.posX = (Game::kScreenWidth - player.sizeOutside);
-		if (player.posY < 0)	player.posY = 0;
-		if (player.posY > Game::kScreenHeight - player.sizeOutside)	player.posY = (Game::kScreenHeight - player.sizeOutside);
-	}
-
-	player.ShotStop--;
-
-	if (padState & PAD_INPUT_START && player.ShotStop == 0)
-	{
-		if (player.space > 0)
-		{
-			player.space = -1;
-			for (int i = 0; i < 10; i++)
-			{
-
-
-
-
-
-			}
-
-			player.ShotStop = 30;
-		}
-		else
-		{
-			player.space = 0;
-		}
-	}
-}
-
-void PlayerDraw(Player& player)
-{
-	if (player.Dead)	return;
-
-	DrawCircle(player.posX + (player.sizeOutside / 2), player.posY + (player.sizeOutside / 2),
-		player.sizeInside, GetColor(0, 255, 0), true);
-
-	DrawBox(player.posX, player.posY, player.posX + player.sizeOutside, player.posY + player.sizeOutside,
-		GetColor(0, 255, 255), false);
-}
-
-
-void EnemyInit(Enemy& enemy)
-{
-	enemy.sizeOutside = 60;
-	enemy.sizeInside = 20;
-
-	enemy.posX = GetRand((Game::kScreenWidth - enemy.sizeOutside));
-	enemy.posY = 0;
-
-	enemy.speed = 4;
-
-	enemy.ColorOutside = GetColor(255, 0, 0);
-	enemy.ColorInside = GetColor(0, 0, 255);
-
-	enemy.Dead = false;
-
-	enemy.resize = true;
-}
-
-void EnemyUpdate(Enemy& enemy)
-{
-	if (enemy.Dead)	return;
-
-	if (enemy.resize)
-	{
-		enemy.sizeInside--;
-		if (enemy.sizeInside == 10)	enemy.resize = false;
-	}
-	else if (enemy.resize == false)
-	{
-		enemy.sizeInside++;
-		if (enemy.sizeInside == 20)	enemy.resize = true;
-	}
-
-	enemy.posY += enemy.speed;
-
-	if (enemy.posY > Game::kScreenHeight - enemy.sizeOutside)	enemy.Dead = true;
-}
-
-void EnemyDraw(Enemy& enemy)
-{
-	if (enemy.Dead)	return;
-
-	DrawBox(enemy.posX, enemy.posY, enemy.posX + enemy.sizeOutside, enemy.posY + enemy.sizeOutside,
-		enemy.ColorOutside, false);
-
-	DrawCircle(enemy.posX + (enemy.sizeOutside / 2), enemy.posY + (enemy.sizeOutside / 2),
-		enemy.sizeInside, enemy.ColorInside, true);
-}
-
-
-void ShotInit(Shot& shot)
-{
-	shot.posX = 0;
-	shot.posY = 0;
-	shot.size = 10;
-
-	shot.speed = 10;
-
-	shot.Dead = true;
-}
-
-void ShotUpdate(Shot& shot)
-{
-	if (shot.Dead)	return;
-
-	shot.posY -= shot.speed;
-
-	if (shot.posY > 0)	shot.Dead = true;
-
-}
-
-void ShotDraw(Shot& shot)
-{
-	if (shot.Dead)	return;
-
-	DrawBox(shot.posX, shot.posY, shot.posX + shot.size, shot.posY + shot.size,
-		GetColor(255, 255, 0), false);
 }
